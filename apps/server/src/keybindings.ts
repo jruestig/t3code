@@ -109,19 +109,24 @@ function isSameKeybindingRule(left: KeybindingRule, right: KeybindingRule): bool
   );
 }
 
-function keybindingShortcutContext(rule: KeybindingRule): string | null {
+function encodedKeybindingShortcut(rule: KeybindingRule): string | null {
   const parsed = parseKeybindingShortcut(rule.key);
   if (!parsed) return null;
-  const encoded = encodeShortcut(parsed);
-  if (!encoded) return null;
-  return `${encoded}\u0000${rule.when ?? ""}`;
+  return encodeShortcut(parsed);
 }
 
-function hasSameShortcutContext(left: KeybindingRule, right: KeybindingRule): boolean {
-  const leftContext = keybindingShortcutContext(left);
-  const rightContext = keybindingShortcutContext(right);
-  if (!leftContext || !rightContext) return false;
-  return leftContext === rightContext;
+/**
+ * Mirrors the conflict rule the settings UI applies: two rules fight over the
+ * same shortcut when either side is unconditional, or their `when` clauses match.
+ */
+function hasConflictingShortcutContext(left: KeybindingRule, right: KeybindingRule): boolean {
+  const leftShortcut = encodedKeybindingShortcut(left);
+  const rightShortcut = encodedKeybindingShortcut(right);
+  if (!leftShortcut || !rightShortcut) return false;
+  if (leftShortcut !== rightShortcut) return false;
+  const leftWhen = left.when ?? "";
+  const rightWhen = right.when ?? "";
+  return leftWhen.length === 0 || rightWhen.length === 0 || leftWhen === rightWhen;
 }
 
 function keybindingRuleFromUpsertInput(input: ServerUpsertKeybindingInput): KeybindingRule {
@@ -510,7 +515,7 @@ const make = Effect.gen(function* () {
           continue;
         }
         const conflictingEntry = customConfig.find((entry) =>
-          hasSameShortcutContext(entry, defaultRule),
+          hasConflictingShortcutContext(entry, defaultRule),
         );
         if (conflictingEntry) {
           shortcutConflictWarnings.push({

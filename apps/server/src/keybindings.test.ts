@@ -353,6 +353,38 @@ it.layer(NodeServices.layer)("keybindings", (it) => {
     );
   });
 
+  it.effect("skips a conditional default when an unconditional user rule owns the shortcut", () =>
+    Effect.gen(function* () {
+      const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
+      yield* writeKeybindingsConfig(keybindingsConfigPath, [
+        { key: "mod+w", command: "script.foo.run" },
+      ]);
+
+      yield* Effect.gen(function* () {
+        const keybindings = yield* Keybindings.Keybindings;
+        yield* keybindings.syncDefaultKeybindingsOnStartup;
+      });
+
+      const persisted = yield* readKeybindingsConfig(keybindingsConfigPath);
+      // The unconditional user rule owns mod+w outright, so both mod+w defaults stay out.
+      assert.isFalse(
+        persisted.some((entry) => entry.key === "mod+w" && entry.command !== "script.foo.run"),
+      );
+      assert.deepEqual(
+        persisted
+          .filter((entry) => entry.command === "script.foo.run")
+          .map(({ key, command, when }) => ({ key, command, when })),
+        [{ key: "mod+w", command: "script.foo.run", when: undefined }],
+      );
+
+      const byCommand = new Set(persisted.map((entry) => entry.command));
+      for (const defaultRule of Keybindings.DEFAULT_KEYBINDINGS) {
+        if (defaultRule.key === "mod+w") continue;
+        assert.isTrue(byCommand.has(defaultRule.command), `expected ${defaultRule.command}`);
+      }
+    }).pipe(Effect.provide(makeKeybindingsLayer())),
+  );
+
   it.effect("upserts custom keybindings to configured path", () =>
     Effect.gen(function* () {
       const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
