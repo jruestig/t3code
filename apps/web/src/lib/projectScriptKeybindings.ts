@@ -34,13 +34,22 @@ export function decodeProjectScriptKeybindingRule(input: {
   return decoded.value;
 }
 
+/**
+ * Reads the shortcut a command currently resolves to. Disabled rules are
+ * skipped by default so nothing presents a dead shortcut as active; pass
+ * `includeDisabled` when the caller needs the rule that owns the command in
+ * the config, such as the replace/remove target of a keybinding write.
+ */
 export function keybindingValueForCommand(
   keybindings: ResolvedKeybindingsConfig,
   command: KeybindingCommand,
+  options?: { includeDisabled?: boolean },
 ): string | null {
+  const includeDisabled = options?.includeDisabled ?? false;
   for (let index = keybindings.length - 1; index >= 0; index -= 1) {
     const binding = keybindings[index];
-    if (!binding || binding.disabled || binding.command !== command) continue;
+    if (!binding || binding.command !== command) continue;
+    if (binding.disabled && !includeDisabled) continue;
 
     const parts: string[] = [];
     if (binding.shortcut.modKey) parts.push("mod");

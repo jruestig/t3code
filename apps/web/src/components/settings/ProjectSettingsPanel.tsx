@@ -518,8 +518,12 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
       setIsSavingScripts(true);
       try {
         // Captured before the write so a cleared or deleted binding can be
-        // removed from the keybindings config afterwards.
-        const previousKeybinding = keybindingValueForCommand(keybindings, keybindingCommand);
+        // removed from the keybindings config afterwards. Disabled rules count
+        // here: they still claim the command, so they are what a replace or
+        // remove has to target instead of leaving them orphaned.
+        const previousKeybinding = keybindingValueForCommand(keybindings, keybindingCommand, {
+          includeDisabled: true,
+        });
         const updateResult = mapAtomCommandResult(
           await updateProject({
             environmentId: selectedCheckout.environmentId,

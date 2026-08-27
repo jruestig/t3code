@@ -137,4 +137,63 @@ describe("projectScriptKeybindings", () => {
 
     expect(value).toBe("mod+alt+j");
   });
+
+  it("returns a disabled keybinding when disabled rules are included", () => {
+    const command = commandForProjectScript("test");
+    const bindings = [
+      {
+        command,
+        disabled: true,
+        shortcut: {
+          key: "k",
+          metaKey: false,
+          ctrlKey: false,
+          shiftKey: true,
+          altKey: false,
+          modKey: true,
+        },
+      },
+    ];
+
+    expect(keybindingValueForCommand(bindings, command, { includeDisabled: true })).toBe(
+      "mod+shift+k",
+    );
+    expect(keybindingValueForCommand(bindings, command, { includeDisabled: false })).toBeNull();
+    expect(keybindingValueForCommand(bindings, command)).toBeNull();
+  });
+
+  it("prefers the latest rule when disabled rules are included", () => {
+    const command = commandForProjectScript("test");
+    const value = keybindingValueForCommand(
+      [
+        {
+          command,
+          shortcut: {
+            key: "j",
+            metaKey: false,
+            ctrlKey: false,
+            shiftKey: false,
+            altKey: true,
+            modKey: true,
+          },
+        },
+        {
+          command,
+          disabled: true,
+          shortcut: {
+            key: "k",
+            metaKey: false,
+            ctrlKey: false,
+            shiftKey: true,
+            altKey: false,
+            modKey: true,
+          },
+        },
+      ],
+      command,
+      { includeDisabled: true },
+    );
+
+    expect(value).toBe("mod+shift+k");
+  });
 });
