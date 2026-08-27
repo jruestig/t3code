@@ -2,8 +2,8 @@
 
 Edit keybindings from **Settings** → **Keybindings**. That page lists every command, its current
 shortcut, whether it is a default or your own, and warns about conflicts. Each row's menu can also
-disable the binding entirely; a disabled binding keeps its place in the list but never fires until
-you enable it again or reset it to the default.
+disable the binding entirely; a disabled binding stays in the list but never fires until you enable
+it again or reset it to the default.
 
 The same configuration lives in `~/.t3/userdata/keybindings.json` on the machine running the
 server, if you prefer editing it directly. T3 Code writes the built-in defaults into that file on

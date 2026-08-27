@@ -44,6 +44,7 @@ import {
   serverEnvironment,
 } from "../../state/server";
 import { usePrimaryEnvironment } from "../../state/environments";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Kbd, KbdGroup } from "../ui/kbd";
@@ -843,9 +844,13 @@ function KeybindingTableRow({
           />
         )}
         {row.disabled && !isDirty ? (
-          <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          <Badge
+            size="sm"
+            variant="secondary"
+            className="bg-muted uppercase tracking-[0.08em] text-muted-foreground"
+          >
             Disabled
-          </span>
+          </Badge>
         ) : null}
         {isDirty ? (
           <Button
