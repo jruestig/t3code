@@ -58,6 +58,45 @@ describe("isPreviewRefreshShortcut", () => {
   });
 });
 
+describe("isAppForwardedShortcut", () => {
+  const input = (overrides: Partial<Electron.Input> = {}) =>
+    ({
+      type: "keyDown",
+      key: "w",
+      meta: false,
+      control: false,
+      shift: false,
+      alt: false,
+      ...overrides,
+    }) as Electron.Input;
+
+  it("forwards mod+W with the platform's spelling of mod", () => {
+    expect(PreviewManager.isAppForwardedShortcut(input({ meta: true }), "darwin")).toBe(true);
+    expect(PreviewManager.isAppForwardedShortcut(input({ control: true }), "darwin")).toBe(false);
+    expect(PreviewManager.isAppForwardedShortcut(input({ control: true }), "linux")).toBe(true);
+    expect(PreviewManager.isAppForwardedShortcut(input({ control: true }), "win32")).toBe(true);
+    expect(PreviewManager.isAppForwardedShortcut(input({ meta: true }), "linux")).toBe(false);
+  });
+
+  it("ignores key-up events and unrelated chords", () => {
+    expect(
+      PreviewManager.isAppForwardedShortcut(input({ control: true, type: "keyUp" }), "linux"),
+    ).toBe(false);
+    expect(
+      PreviewManager.isAppForwardedShortcut(input({ control: true, shift: true }), "linux"),
+    ).toBe(false);
+  });
+
+  it("keeps the other forwarded chords meta-only on every platform", () => {
+    expect(PreviewManager.isAppForwardedShortcut(input({ key: "k", meta: true }), "linux")).toBe(
+      true,
+    );
+    expect(PreviewManager.isAppForwardedShortcut(input({ key: "k", control: true }), "linux")).toBe(
+      false,
+    );
+  });
+});
+
 const {
   browserWindowConstructor,
   createFromPath,

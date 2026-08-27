@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { isElectron } from "../env";
 import { resolveShortcutCommand } from "../keybindings";
+import { isPreviewFocused } from "../lib/previewFocus";
 import { isTerminalCloseConfirmPending } from "../lib/terminalCloseConfirm";
 import { getTerminalFocusOwner } from "../lib/terminalFocus";
 import { primaryServerKeybindingsAtom } from "../state/server";
@@ -20,12 +21,25 @@ export function WindowCloseShortcut() {
 
     const handler = (event: globalThis.KeyboardEvent) => {
       if (event.repeat || event.defaultPrevented) return;
+      // A shortcut recorder is spelling this keystroke, not running it.
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("[data-keybinding-capture]")
+      ) {
+        return;
+      }
       // A terminal close confirmation holds focus outside the terminal, so the
       // `!terminalFocus` clause would otherwise match and close the window out
       // from under the dialog.
       if (isTerminalCloseConfirmPending()) return;
+      // Root-mounted, so route/thread-scoped flags such as `terminalOpen` are
+      // out of reach; a `window.close` rule that reads them evaluates them as
+      // false, matching how other global handlers pass partial context.
       const command = resolveShortcutCommand(event, keybindings, {
-        context: { terminalFocus: getTerminalFocusOwner() !== null },
+        context: {
+          terminalFocus: getTerminalFocusOwner() !== null,
+          previewFocus: isPreviewFocused(),
+        },
       });
       if (command !== "window.close") return;
       event.preventDefault();

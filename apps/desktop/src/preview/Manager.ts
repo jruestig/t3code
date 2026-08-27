@@ -423,6 +423,8 @@ const APP_FORWARDED_SHORTCUTS: ReadonlyArray<{
   meta: boolean;
   shift: boolean;
   control: boolean;
+  /** Omitted forwards everywhere; otherwise the entry is macOS-only or macOS-never. */
+  onlyOn?: "darwin" | "non-darwin";
 }> = Object.freeze([
   // mod+shift+J → preview.toggle
   { key: "j", meta: true, shift: true, control: false },
@@ -430,9 +432,27 @@ const APP_FORWARDED_SHORTCUTS: ReadonlyArray<{
   { key: "k", meta: true, shift: false, control: false },
   // mod+, → settings (macOS convention)
   { key: ",", meta: true, shift: false, control: false },
-  // mod+W → close tab/panel
-  { key: "w", meta: true, shift: false, control: false },
+  // mod+W → close tab/panel, and `window.close` when nothing closer claims it.
+  // The renderer keybinding registry decides, so mod has to be spelled per
+  // platform: Cmd on macOS, Ctrl everywhere else.
+  { key: "w", meta: true, shift: false, control: false, onlyOn: "darwin" },
+  { key: "w", meta: false, shift: false, control: true, onlyOn: "non-darwin" },
 ]);
+
+/**
+ * True when a preview guest keystroke belongs to the main renderer instead.
+ * `platform` is the host platform, which decides how `mod` is spelled.
+ */
+export const isAppForwardedShortcut = (input: Electron.Input, platform: NodeJS.Platform): boolean =>
+  input.type === "keyDown" &&
+  APP_FORWARDED_SHORTCUTS.some(
+    (shortcut) =>
+      shortcut.key.toLowerCase() === input.key.toLowerCase() &&
+      shortcut.meta === input.meta &&
+      shortcut.shift === input.shift &&
+      shortcut.control === input.control &&
+      (shortcut.onlyOn === undefined || (shortcut.onlyOn === "darwin") === (platform === "darwin")),
+  );
 
 export const isPreviewRefreshShortcut = (input: Electron.Input): boolean =>
   input.type === "keyDown" &&
@@ -1358,14 +1378,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
   });
 
   const isAppShortcut = (input: Electron.Input): boolean =>
-    input.type === "keyDown" &&
-    APP_FORWARDED_SHORTCUTS.some(
-      (shortcut) =>
-        shortcut.key.toLowerCase() === input.key.toLowerCase() &&
-        shortcut.meta === input.meta &&
-        shortcut.shift === input.shift &&
-        shortcut.control === input.control,
-    );
+    isAppForwardedShortcut(input, hostPlatform);
 
   const computeNavStatus = (wc: Electron.WebContents): PreviewNavStatus => {
     const url = wc.getURL();
