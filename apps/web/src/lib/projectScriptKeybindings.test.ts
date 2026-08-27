@@ -80,4 +80,61 @@ describe("projectScriptKeybindings", () => {
 
     expect(value).toBe("mod+shift+k");
   });
+
+  it("ignores disabled keybindings for a command", () => {
+    const command = commandForProjectScript("test");
+    const value = keybindingValueForCommand(
+      [
+        {
+          command,
+          disabled: true,
+          shortcut: {
+            key: "k",
+            metaKey: false,
+            ctrlKey: false,
+            shiftKey: true,
+            altKey: false,
+            modKey: true,
+          },
+        },
+      ],
+      command,
+    );
+
+    expect(value).toBeNull();
+  });
+
+  it("falls through a later disabled rule to an earlier enabled one", () => {
+    const command = commandForProjectScript("test");
+    const value = keybindingValueForCommand(
+      [
+        {
+          command,
+          shortcut: {
+            key: "j",
+            metaKey: false,
+            ctrlKey: false,
+            shiftKey: false,
+            altKey: true,
+            modKey: true,
+          },
+        },
+        {
+          command,
+          disabled: true,
+          shortcut: {
+            key: "k",
+            metaKey: false,
+            ctrlKey: false,
+            shiftKey: true,
+            altKey: false,
+            modKey: true,
+          },
+        },
+      ],
+      command,
+    );
+
+    expect(value).toBe("mod+alt+j");
+  });
 });

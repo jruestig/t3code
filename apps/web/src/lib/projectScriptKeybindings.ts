@@ -40,7 +40,7 @@ export function keybindingValueForCommand(
 ): string | null {
   for (let index = keybindings.length - 1; index >= 0; index -= 1) {
     const binding = keybindings[index];
-    if (!binding || binding.command !== command) continue;
+    if (!binding || binding.disabled || binding.command !== command) continue;
 
     const parts: string[] = [];
     if (binding.shortcut.modKey) parts.push("mod");
