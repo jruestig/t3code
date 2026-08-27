@@ -42,9 +42,13 @@ export function WindowCloseShortcut() {
         },
       });
       if (command !== "window.close") return;
+      // An older desktop shell has no `closeWindow` and still binds the native
+      // accelerator, so swallowing the keystroke here would break its own close.
+      const closeWindow = window.desktopBridge?.closeWindow;
+      if (!closeWindow) return;
       event.preventDefault();
       event.stopPropagation();
-      void window.desktopBridge?.closeWindow?.();
+      void closeWindow();
     };
 
     window.addEventListener("keydown", handler, true);

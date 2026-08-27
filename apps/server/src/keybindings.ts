@@ -514,8 +514,11 @@ const make = Effect.gen(function* () {
         if (existingCommands.has(defaultRule.command)) {
           continue;
         }
-        const conflictingEntry = customConfig.find((entry) =>
-          hasConflictingShortcutContext(entry, defaultRule),
+        // A disabled rule claims no shortcut, so it must not block a default from
+        // backfilling. Matches how the settings UI reports conflicts. Defaults are
+        // never disabled, so only the user entry needs the guard.
+        const conflictingEntry = customConfig.find(
+          (entry) => entry.disabled !== true && hasConflictingShortcutContext(entry, defaultRule),
         );
         if (conflictingEntry) {
           shortcutConflictWarnings.push({

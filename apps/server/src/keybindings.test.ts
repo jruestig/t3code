@@ -385,6 +385,40 @@ it.layer(NodeServices.layer)("keybindings", (it) => {
     }).pipe(Effect.provide(makeKeybindingsLayer())),
   );
 
+  it.effect("backfills mod+w defaults when the user rule that owns the shortcut is disabled", () =>
+    Effect.gen(function* () {
+      const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
+      yield* writeKeybindingsConfig(keybindingsConfigPath, [
+        { key: "mod+w", command: "script.foo.run", disabled: true },
+      ]);
+
+      yield* Effect.gen(function* () {
+        const keybindings = yield* Keybindings.Keybindings;
+        yield* keybindings.syncDefaultKeybindingsOnStartup;
+      });
+
+      const persisted = yield* readKeybindingsConfig(keybindingsConfigPath);
+      // The disabled rule claims no shortcut, so both mod+w defaults come back.
+      assert.deepEqual(
+        persisted
+          .filter((entry) => entry.command === "window.close" || entry.command === "terminal.close")
+          .map(({ key, command, when }) => ({ key, command, when })),
+        Keybindings.DEFAULT_KEYBINDINGS.filter(
+          (entry) => entry.command === "window.close" || entry.command === "terminal.close",
+        ).map(({ key, command, when }) => ({ key, command, when })),
+      );
+
+      const disabledEntries = persisted.filter((entry) => entry.command === "script.foo.run");
+      assert.equal(disabledEntries.length, 1);
+      assert.isTrue(disabledEntries[0]?.disabled);
+
+      const byCommand = new Set(persisted.map((entry) => entry.command));
+      for (const defaultRule of Keybindings.DEFAULT_KEYBINDINGS) {
+        assert.isTrue(byCommand.has(defaultRule.command), `expected ${defaultRule.command}`);
+      }
+    }).pipe(Effect.provide(makeKeybindingsLayer())),
+  );
+
   it.effect("upserts custom keybindings to configured path", () =>
     Effect.gen(function* () {
       const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
