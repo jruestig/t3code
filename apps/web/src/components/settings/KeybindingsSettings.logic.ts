@@ -21,6 +21,7 @@ export interface KeybindingRow {
   readonly key: string;
   readonly when: string;
   readonly source: KeybindingSource;
+  readonly disabled: boolean;
   readonly defaultKey: string | null;
   readonly defaultWhen: string;
   readonly binding: ResolvedKeybindingRule;
@@ -95,6 +96,11 @@ function sourceForBinding(binding: ResolvedKeybindingRule): KeybindingSource {
     return "Project";
   }
 
+  // Defaults are never disabled, so a disabled rule is always a user override.
+  if (binding.disabled) {
+    return "Custom";
+  }
+
   const bindingKey = shortcutToKeybindingInput(binding.shortcut);
   const bindingWhen = whenAstToExpression(binding.whenAst);
   const isDefault = DEFAULT_RESOLVED_KEYBINDINGS.some(
@@ -145,6 +151,7 @@ export function keybindingConflictLabels(
   for (const candidate of rows) {
     if (
       candidate.id !== input.rowId &&
+      !candidate.disabled &&
       candidate.key === input.key &&
       conflictsWithWhen(candidate.when, input.when)
     ) {
@@ -169,6 +176,7 @@ export function buildKeybindingRows(
       key,
       when,
       source: sourceForBinding(binding),
+      disabled: binding.disabled === true,
       defaultKey: defaultBinding ? shortcutToKeybindingInput(defaultBinding.shortcut) : null,
       defaultWhen: whenAstToExpression(defaultBinding?.whenAst),
       binding,
@@ -177,6 +185,7 @@ export function buildKeybindingRows(
   });
 
   const rowsWithConflicts = rows.map((row) => {
+    if (row.disabled) return row;
     const conflicts = keybindingConflictLabels(rows, {
       rowId: row.id,
       key: row.key,
@@ -202,7 +211,8 @@ export function buildKeybindingRows(
       row.command.toLowerCase().includes(normalizedQuery) ||
       row.key.toLowerCase().includes(normalizedQuery) ||
       row.when.toLowerCase().includes(normalizedQuery) ||
-      row.source.toLowerCase().includes(normalizedQuery)
+      row.source.toLowerCase().includes(normalizedQuery) ||
+      (row.disabled && "disabled".includes(normalizedQuery))
     );
   });
 }

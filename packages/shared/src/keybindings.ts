@@ -266,6 +266,7 @@ export function compileResolvedKeybindingRule(rule: KeybindingRule): ResolvedKey
   const shortcut = parseKeybindingShortcut(rule.key);
   if (!shortcut) return null;
 
+  const disabled = rule.disabled === true ? { disabled: true } : {};
   if (rule.when !== undefined) {
     const whenAst = parseKeybindingWhenExpression(rule.when);
     if (!whenAst) return null;
@@ -273,12 +274,14 @@ export function compileResolvedKeybindingRule(rule: KeybindingRule): ResolvedKey
       command: rule.command,
       shortcut,
       whenAst,
+      ...disabled,
     };
   }
 
   return {
     command: rule.command,
     shortcut,
+    ...disabled,
   };
 }
 

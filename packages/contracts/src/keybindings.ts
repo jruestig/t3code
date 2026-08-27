@@ -104,6 +104,8 @@ export const KeybindingRule = Schema.Struct({
   key: KeybindingValue,
   command: KeybindingCommand,
   when: Schema.optional(KeybindingWhen),
+  /** A disabled rule keeps its slot (so the default is not re-added) but never matches. */
+  disabled: Schema.optional(Schema.Boolean),
 });
 export type KeybindingRule = typeof KeybindingRule.Type;
 
@@ -155,6 +157,7 @@ export const ResolvedKeybindingRule = Schema.Struct({
   command: KeybindingCommand,
   shortcut: KeybindingShortcut,
   whenAst: Schema.optional(KeybindingWhenNode),
+  disabled: Schema.optional(Schema.Boolean),
 }).annotate({ parseOptions: { onExcessProperty: "ignore" } });
 export type ResolvedKeybindingRule = typeof ResolvedKeybindingRule.Type;
 

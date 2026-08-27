@@ -74,6 +74,7 @@ interface TestBinding {
   shortcut: KeybindingShortcut;
   command: KeybindingCommand;
   whenAst?: KeybindingWhenNode;
+  disabled?: boolean;
 }
 
 function compile(bindings: TestBinding[]): ResolvedKeybindingsConfig {
@@ -81,6 +82,7 @@ function compile(bindings: TestBinding[]): ResolvedKeybindingsConfig {
     command: binding.command,
     shortcut: binding.shortcut,
     ...(binding.whenAst ? { whenAst: binding.whenAst } : {}),
+    ...(binding.disabled ? { disabled: true } : {}),
   }));
 }
 
@@ -705,6 +707,42 @@ describe("cross-command precedence", () => {
         context: { terminalFocus: true },
       }),
     );
+  });
+});
+
+describe("disabled bindings", () => {
+  it("returns null when the only binding for a shortcut is disabled", () => {
+    const keybindings = compile([
+      { shortcut: modShortcut("j"), command: "terminal.toggle", disabled: true },
+    ]);
+
+    assert.isNull(
+      resolveShortcutCommand(event({ key: "j", ctrlKey: true }), keybindings, {
+        platform: "Linux",
+      }),
+    );
+  });
+
+  it("skips a disabled later rule so an earlier rule still wins", () => {
+    const keybindings = compile([
+      { shortcut: modShortcut("j"), command: "terminal.toggle" },
+      { shortcut: modShortcut("j"), command: "sidebar.toggle", disabled: true },
+    ]);
+
+    assert.strictEqual(
+      resolveShortcutCommand(event({ key: "j", ctrlKey: true }), keybindings, {
+        platform: "Linux",
+      }),
+      "terminal.toggle",
+    );
+  });
+
+  it("shows no shortcut label for a disabled binding", () => {
+    const keybindings = compile([
+      { shortcut: modShortcut("j"), command: "terminal.toggle", disabled: true },
+    ]);
+
+    assert.isNull(shortcutLabelForCommand(keybindings, "terminal.toggle", "Linux"));
   });
 });
 

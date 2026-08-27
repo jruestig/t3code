@@ -741,6 +741,7 @@ function KeybindingTableRow({
   onSave,
   onReset,
   onRemove,
+  onToggleDisabled,
 }: {
   row: KeybindingRow;
   allRows: ReadonlyArray<KeybindingRow>;
@@ -749,6 +750,7 @@ function KeybindingTableRow({
   onSave: (input: ServerUpsertKeybindingInput) => void;
   onReset: (row: KeybindingRow) => void;
   onRemove: (row: KeybindingRow) => void;
+  onToggleDisabled: (row: KeybindingRow) => void;
 }) {
   const [draft, setDraft] = useReducer(keybindingRowDraftReducer, row, createKeybindingRowDraft);
   const { keyDraft, whenDraft, isRecording, isWhenDraftValid } = draft;
@@ -757,19 +759,21 @@ function KeybindingTableRow({
   const displayShortcut = formatShortcutLabel(row.binding.shortcut);
   const canReset = row.source === "Custom" && row.defaultKey !== null;
   const canRemove = row.source !== "Default";
-  const hasRowActions = canReset || canRemove;
   const showPill = !isRecording && keyDraft === row.key && row.key.length > 0 && !isDirty;
-  const conflictLabels = keybindingConflictLabels(allRows, {
-    rowId: row.id,
-    key: keyDraft,
-    when: whenDraftExpression,
-  });
+  const conflictLabels = row.disabled
+    ? []
+    : keybindingConflictLabels(allRows, {
+        rowId: row.id,
+        key: keyDraft,
+        when: whenDraftExpression,
+      });
 
   const save = () => {
     onSave({
       command: row.command,
       key: keyDraft,
       when: whenDraftExpression.trim().length > 0 ? whenDraftExpression : undefined,
+      ...(row.disabled ? { disabled: true } : {}),
       replace: rowKeybindingTarget(row),
     });
   };
@@ -811,7 +815,10 @@ function KeybindingTableRow({
             type="button"
             onClick={() => setDraft({ isRecording: true })}
             aria-label={`Edit shortcut for ${commandLabel(row.command)}`}
-            className="group inline-flex h-7 items-center gap-1.5 rounded-md border border-transparent px-1.5 outline-none transition-colors hover:border-border/70 hover:bg-background focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24"
+            className={cn(
+              "group inline-flex h-7 items-center gap-1.5 rounded-md border border-transparent px-1.5 outline-none transition-colors hover:border-border/70 hover:bg-background focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24",
+              row.disabled && "opacity-45",
+            )}
           >
             <KeybindingPill value={row.key} />
             <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground/0 transition-opacity group-hover:text-muted-foreground/70 group-focus-visible:text-muted-foreground/70">
@@ -835,6 +842,11 @@ function KeybindingTableRow({
             onKeyDown={captureKeybinding}
           />
         )}
+        {row.disabled && !isDirty ? (
+          <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+            Disabled
+          </span>
+        ) : null}
         {isDirty ? (
           <Button
             size="compact"
@@ -869,36 +881,37 @@ function KeybindingTableRow({
       </div>
       <div className="flex items-center justify-end gap-1">
         <KeybindingConflictWarning labels={conflictLabels} />
-        {hasRowActions ? (
-          <Menu>
-            <MenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-7 text-muted-foreground hover:text-foreground sm:size-7"
-                  disabled={isSaving}
-                  aria-label={`Actions for ${commandLabel(row.command)}`}
-                />
-              }
-            >
-              <EllipsisIcon className="size-3.5" />
-            </MenuTrigger>
-            <MenuPopup align="end" className="min-w-36">
-              {canReset ? (
-                <MenuItem disabled={isSaving} onClick={() => onReset(row)}>
-                  Reset to default
-                </MenuItem>
-              ) : null}
-              {canRemove ? (
-                <MenuItem variant="destructive" disabled={isSaving} onClick={() => onRemove(row)}>
-                  Remove
-                </MenuItem>
-              ) : null}
-            </MenuPopup>
-          </Menu>
-        ) : null}
+        <Menu>
+          <MenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="size-7 text-muted-foreground hover:text-foreground sm:size-7"
+                disabled={isSaving}
+                aria-label={`Actions for ${commandLabel(row.command)}`}
+              />
+            }
+          >
+            <EllipsisIcon className="size-3.5" />
+          </MenuTrigger>
+          <MenuPopup align="end" className="min-w-36">
+            <MenuItem disabled={isSaving} onClick={() => onToggleDisabled(row)}>
+              {row.disabled ? "Enable" : "Disable"}
+            </MenuItem>
+            {canReset ? (
+              <MenuItem disabled={isSaving} onClick={() => onReset(row)}>
+                Reset to default
+              </MenuItem>
+            ) : null}
+            {canRemove ? (
+              <MenuItem variant="destructive" disabled={isSaving} onClick={() => onRemove(row)}>
+                Remove
+              </MenuItem>
+            ) : null}
+          </MenuPopup>
+        </Menu>
         <span className="sr-only">{displayShortcut}</span>
       </div>
     </div>
@@ -1122,6 +1135,7 @@ export function KeybindingsSettingsPanel() {
         command: input.command,
         key: input.key.trim(),
         ...(input.when?.trim() ? { when: input.when.trim() } : {}),
+        ...(input.disabled === true ? { disabled: true } : {}),
         ...(input.replace ? { replace: input.replace } : {}),
       };
       void (async () => {
@@ -1168,6 +1182,19 @@ export function KeybindingsSettingsPanel() {
       })();
     },
     [primaryEnvironment, removeKeybindingMutation],
+  );
+
+  const toggleKeybindingDisabled = useCallback(
+    (row: KeybindingRow) => {
+      saveKeybinding({
+        command: row.command,
+        key: row.key,
+        when: row.when.trim().length > 0 ? row.when : undefined,
+        ...(row.disabled ? {} : { disabled: true }),
+        replace: rowKeybindingTarget(row),
+      });
+    },
+    [saveKeybinding],
   );
 
   const resetKeybinding = useCallback(
@@ -1287,6 +1314,7 @@ export function KeybindingsSettingsPanel() {
                 onSave={saveKeybinding}
                 onReset={resetKeybinding}
                 onRemove={removeKeybinding}
+                onToggleDisabled={toggleKeybindingDisabled}
               />
             ))}
             {rows.length === 0 && !isAddingBinding ? (

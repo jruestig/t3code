@@ -178,7 +178,7 @@ function findEffectiveShortcutForCommand(
 
   for (let index = keybindings.length - 1; index >= 0; index -= 1) {
     const binding = keybindings[index];
-    if (!binding) continue;
+    if (!binding || binding.disabled) continue;
     if (!matchesWhenClause(binding.whenAst, context)) continue;
 
     const conflictKey = shortcutConflictKey(binding.shortcut, platform);
@@ -214,7 +214,7 @@ export function resolveShortcutCommand(
 
   for (let index = keybindings.length - 1; index >= 0; index -= 1) {
     const binding = keybindings[index];
-    if (!binding) continue;
+    if (!binding || binding.disabled) continue;
     if (!matchesWhenClause(binding.whenAst, context)) continue;
     if (!matchesShortcut(event, binding.shortcut, platform)) continue;
     return binding.command;

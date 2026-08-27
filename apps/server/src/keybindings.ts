@@ -90,6 +90,7 @@ export const ResolvedKeybindingFromConfig = KeybindingRule.pipe(
             key,
             command: resolved.command,
             when,
+            ...(resolved.disabled === true ? { disabled: true } : {}),
           };
         }),
     }),
@@ -124,9 +125,12 @@ function hasSameShortcutContext(left: KeybindingRule, right: KeybindingRule): bo
 }
 
 function keybindingRuleFromUpsertInput(input: ServerUpsertKeybindingInput): KeybindingRule {
-  return input.when === undefined
-    ? { key: input.key, command: input.command }
-    : { key: input.key, command: input.command, when: input.when };
+  return {
+    key: input.key,
+    command: input.command,
+    ...(input.when === undefined ? {} : { when: input.when }),
+    ...(input.disabled === true ? { disabled: true } : {}),
+  };
 }
 
 function replaceTargetFromUpsertInput(input: ServerUpsertKeybindingInput): KeybindingRule | null {

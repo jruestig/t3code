@@ -459,6 +459,63 @@ it.layer(NodeServices.layer)("keybindings", (it) => {
     }).pipe(Effect.provide(makeKeybindingsLayer())),
   );
 
+  it.effect("disables a rule in place and resolves it as disabled", () =>
+    Effect.gen(function* () {
+      const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
+      yield* writeKeybindingsConfig(keybindingsConfigPath, [
+        { key: "mod+j", command: "terminal.toggle" },
+      ]);
+
+      const resolved = yield* Effect.gen(function* () {
+        const keybindings = yield* Keybindings.Keybindings;
+        return yield* keybindings.upsertKeybindingRule({
+          key: "mod+j",
+          command: "terminal.toggle",
+          disabled: true,
+          replace: { key: "mod+j", command: "terminal.toggle" },
+        });
+      });
+
+      const persisted = yield* readKeybindingsConfig(keybindingsConfigPath);
+      const persistedView = persisted.map(({ key, command, disabled }) => ({
+        key,
+        command,
+        disabled,
+      }));
+      assert.deepEqual(persistedView, [
+        { key: "mod+j", command: "terminal.toggle", disabled: true },
+      ]);
+
+      const toggleRules = resolved.filter((entry) => entry.command === "terminal.toggle");
+      assert.equal(toggleRules.length, 1);
+      assert.isTrue(toggleRules[0]?.disabled);
+    }).pipe(Effect.provide(makeKeybindingsLayer())),
+  );
+
+  it.effect("startup sync does not re-add a default that was disabled", () =>
+    Effect.gen(function* () {
+      const { keybindingsConfigPath } = yield* ServerConfig.ServerConfig;
+      yield* writeKeybindingsConfig(keybindingsConfigPath, [
+        { key: "mod+j", command: "terminal.toggle", disabled: true },
+      ]);
+
+      const resolved = yield* Effect.gen(function* () {
+        const keybindings = yield* Keybindings.Keybindings;
+        yield* keybindings.syncDefaultKeybindingsOnStartup;
+        return (yield* keybindings.loadConfigState).keybindings;
+      });
+
+      const persisted = yield* readKeybindingsConfig(keybindingsConfigPath);
+      const toggleEntries = persisted.filter((entry) => entry.command === "terminal.toggle");
+      assert.equal(toggleEntries.length, 1);
+      assert.isTrue(toggleEntries[0]?.disabled);
+
+      const toggleRules = resolved.filter((entry) => entry.command === "terminal.toggle");
+      assert.equal(toggleRules.length, 1);
+      assert.isTrue(toggleRules[0]?.disabled);
+    }).pipe(Effect.provide(makeKeybindingsLayer())),
+  );
+
   it.effect("refuses to overwrite malformed keybindings config", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

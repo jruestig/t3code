@@ -1,7 +1,9 @@
 # Keybindings
 
 Edit keybindings from **Settings** → **Keybindings**. That page lists every command, its current
-shortcut, whether it is a default or your own, and warns about conflicts.
+shortcut, whether it is a default or your own, and warns about conflicts. Each row's menu can also
+disable the binding entirely; a disabled binding keeps its place in the list but never fires until
+you enable it again or reset it to the default.
 
 The same configuration lives in `~/.t3/userdata/keybindings.json` on the machine running the
 server, if you prefer editing it directly. T3 Code writes the built-in defaults into that file on
@@ -24,6 +26,8 @@ Invalid rules are ignored. An invalid file is ignored entirely, and the server l
 - `key` (required): shortcut string, like `mod+j`, `ctrl+k`, `cmd+shift+d`
 - `command` (required): the command ID to run
 - `when` (optional): boolean expression controlling when the shortcut is active
+- `disabled` (optional): `true` turns the rule off without deleting it. Deleting a default's rule
+  brings the default back on the next startup; disabling it is how you switch a default off.
 
 ## Key Syntax
 
