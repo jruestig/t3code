@@ -56,6 +56,11 @@ const zoomMainWindow = Effect.fn("desktop.menu.zoomMainWindow")(function* (
   yield* desktopWindow.zoomMain(direction);
 });
 
+const closeMainWindow = Effect.gen(function* () {
+  const desktopWindow = yield* DesktopWindow.DesktopWindow;
+  yield* desktopWindow.closeMain;
+}).pipe(Effect.withSpan("desktop.menu.closeMainWindow"));
+
 const checkForUpdatesFromMenu = Effect.gen(function* () {
   const updates = yield* DesktopUpdates.DesktopUpdates;
   const electronDialog = yield* ElectronDialog.ElectronDialog;
@@ -137,6 +142,18 @@ export const make = Effect.gen(function* () {
     const zoomClick = (direction: DesktopWindow.MainWindowZoomDirection) => () => {
       runMenuEffect(`zoom-${direction}`, zoomMainWindow(direction));
     };
+    /*
+      Not the `close` role: it registers CmdOrCtrl+W as a native accelerator,
+      which would take the shortcut away from the `window.close` keybinding
+      before the renderer ever sees the key. No item in this menu may bind
+      CmdOrCtrl+W.
+    */
+    const closeWindowItem: Electron.MenuItemConstructorOptions = {
+      label: "Close Window",
+      click: () => {
+        runMenuEffect("close-window", closeMainWindow);
+      },
+    };
     const template: Electron.MenuItemConstructorOptions[] = [];
 
     if (environment.platform === "darwin") {
@@ -180,7 +197,7 @@ export const make = Effect.gen(function* () {
                 },
                 { type: "separator" as const },
               ]),
-          { role: environment.platform === "darwin" ? "close" : "quit" },
+          environment.platform === "darwin" ? closeWindowItem : { role: "quit" },
         ],
       },
       { role: "editMenu" },
@@ -210,7 +227,19 @@ export const make = Effect.gen(function* () {
           { role: "togglefullscreen" },
         ],
       },
-      { role: "windowMenu" },
+      {
+        // Electron's `windowMenu` role, with its close role swapped for the
+        // accelerator-less item. macOS keeps Close Window in the File menu,
+        // exactly as the role does.
+        label: "Window",
+        submenu: [
+          { role: "minimize" },
+          { role: "zoom" },
+          ...(environment.platform === "darwin"
+            ? [{ type: "separator" as const }, { role: "front" as const }]
+            : [closeWindowItem]),
+        ],
+      },
       {
         role: "help",
         submenu: [

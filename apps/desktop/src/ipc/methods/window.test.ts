@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -10,7 +11,9 @@ import * as DesktopBackendManager from "../../backend/DesktopBackendManager.ts";
 import * as DesktopBackendPool from "../../backend/DesktopBackendPool.ts";
 import * as ElectronDialog from "../../electron/ElectronDialog.ts";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
+import * as DesktopWindow from "../../window/DesktopWindow.ts";
 import {
+  closeWindow,
   getLocalEnvironmentBootstraps,
   getWindowFullscreenState,
   pickProjectFavicon,
@@ -151,6 +154,23 @@ describe("getWindowFullscreenState", () => {
       ),
     );
   });
+});
+
+describe("closeWindow", () => {
+  it.effect("delegates to the desktop window service", () =>
+    Effect.gen(function* () {
+      const closeMain = yield* Deferred.make<boolean>();
+      yield* closeWindow.handler(undefined).pipe(
+        Effect.provide(
+          Layer.mock(DesktopWindow.DesktopWindow)({
+            closeMain: Deferred.succeed(closeMain, true).pipe(Effect.asVoid),
+          }),
+        ),
+      );
+
+      assert.isTrue(yield* Deferred.await(closeMain));
+    }),
+  );
 });
 
 describe("pickProjectFavicon", () => {

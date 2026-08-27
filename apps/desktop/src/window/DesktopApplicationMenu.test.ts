@@ -83,6 +83,7 @@ const makeDesktopWindowLayer = (selectedAction: Deferred.Deferred<string>) =>
     dispatchMenuAction: (action) => Deferred.succeed(selectedAction, action).pipe(Effect.asVoid),
     zoomMain: (direction) =>
       Deferred.succeed(selectedAction, `zoom-${direction}`).pipe(Effect.asVoid),
+    closeMain: Deferred.succeed(selectedAction, "close-window").pipe(Effect.asVoid),
     syncAppearance: Effect.void,
   } satisfies DesktopWindow.DesktopWindow["Service"]);
 
@@ -119,6 +120,15 @@ const configureMenu = (
       ),
     ),
   );
+
+function flattenMenuItems(
+  template: readonly Electron.MenuItemConstructorOptions[],
+): readonly Electron.MenuItemConstructorOptions[] {
+  return template.flatMap((item) => [
+    item,
+    ...(Array.isArray(item.submenu) ? flattenMenuItems(item.submenu) : []),
+  ]);
+}
 
 describe("DesktopApplicationMenu", () => {
   it.effect("installs the native menu and routes Settings through DesktopWindow", () =>
@@ -178,6 +188,44 @@ describe("DesktopApplicationMenu", () => {
 
       zoomIn.click({} as Electron.MenuItem, {} as Electron.BrowserWindow, {} as KeyboardEvent);
       assert.equal(yield* Deferred.await(selectedAction), "zoom-in");
+    }),
+  );
+
+  // The `close` role carries an implicit CmdOrCtrl+W accelerator, which would
+  // consume the key before the renderer's `window.close` keybinding sees it.
+  it.effect("routes Close Window through DesktopWindow and leaves CmdOrCtrl+W unbound", () =>
+    Effect.gen(function* () {
+      const selectedAction = yield* Deferred.make<string>();
+      const applicationMenuTemplate =
+        yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
+
+      yield* configureMenu(selectedAction, applicationMenuTemplate);
+
+      const template = yield* Deferred.await(applicationMenuTemplate);
+      const allItems = flattenMenuItems(template);
+      assert.isUndefined(allItems.find((item) => item.role?.toLowerCase() === "close"));
+      assert.isUndefined(
+        allItems.find((item) => item.accelerator?.toLowerCase().endsWith("+w") === true),
+      );
+
+      const windowMenu = template.find((item) => item.label === "Window");
+      assert.isDefined(windowMenu);
+      if (!Array.isArray(windowMenu.submenu)) {
+        throw new Error("Expected Window menu submenu to be an array.");
+      }
+      assert.deepEqual(
+        windowMenu.submenu.map((item) => item.role ?? item.label),
+        ["minimize", "zoom", "Close Window"],
+      );
+
+      const closeWindow = windowMenu.submenu.find((item) => item.label === "Close Window");
+      assert.isDefined(closeWindow);
+      if (typeof closeWindow.click !== "function") {
+        throw new Error("Expected Close Window menu item to have a click handler.");
+      }
+
+      closeWindow.click({} as Electron.MenuItem, {} as Electron.BrowserWindow, {} as KeyboardEvent);
+      assert.equal(yield* Deferred.await(selectedAction), "close-window");
     }),
   );
 });

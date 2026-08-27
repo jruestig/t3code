@@ -5082,7 +5082,7 @@ function ChatViewContent(props: ChatViewProps) {
       }
       // While a close confirmation is open, terminal focus has moved to the
       // dialog, so a deliberate second close shortcut would otherwise fall
-      // through to the native window/tab close accelerator.
+      // through to `window.close` on desktop or the browser's tab close.
       if (isTerminalCloseConfirmPending() && preventTerminalCloseShortcut(event, keybindings)) {
         event.stopPropagation();
         return;

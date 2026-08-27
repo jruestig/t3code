@@ -31,6 +31,7 @@ import {
   setUpdateChannel,
 } from "./methods/updates.ts";
 import {
+  closeWindow,
   getAppBranding,
   getLocalEnvironmentBootstraps,
   getLocalEnvironmentBearerToken,
@@ -56,6 +57,7 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handleSync(getWindowFullscreenState);
   yield* ipc.handleSync(getLocalEnvironmentBootstraps);
   yield* ipc.handle(getLocalEnvironmentBearerToken);
+  yield* ipc.handle(closeWindow);
 
   yield* ipc.handle(getClientSettings);
   yield* ipc.handle(setClientSettings);

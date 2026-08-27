@@ -1137,6 +1137,12 @@ export interface DesktopBridge {
    * desktop builds never emit it.
    */
   onQuitShortcut?: (listener: (state: "down" | "up") => void) => () => void;
+  /**
+   * Closes the focused app window, backing the `window.close` keybinding.
+   * Optional: older desktop shells hosting a newer web client lack it, and the
+   * renderer then leaves the shortcut alone.
+   */
+  closeWindow?: () => Promise<void>;
   getWindowFullscreenState: () => boolean;
   onWindowFullscreenStateChange: (listener: (fullscreen: boolean) => void) => () => void;
   getUpdateState: () => Promise<DesktopUpdateState>;

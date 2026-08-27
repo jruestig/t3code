@@ -211,6 +211,17 @@ it.layer(NodeServices.layer)("keybindings", (it) => {
     }),
   );
 
+  it.effect("ships mod+w defaults that split the terminal and the window", () =>
+    Effect.sync(() => {
+      const closeRules = Keybindings.DEFAULT_KEYBINDINGS.filter((rule) => rule.key === "mod+w");
+
+      assert.deepEqual(closeRules, [
+        { key: "mod+w", command: "terminal.close", when: "terminalFocus" },
+        { key: "mod+w", command: "window.close", when: "!terminalFocus" },
+      ]);
+    }),
+  );
+
   it.effect("uses defaults in runtime when config is malformed without overriding file", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

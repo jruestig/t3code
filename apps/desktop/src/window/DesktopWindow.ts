@@ -106,6 +106,10 @@ export class DesktopWindow extends Context.Service<
     // guest page instead of the app UI. The menu routes here to always target
     // the main window.
     readonly zoomMain: (direction: MainWindowZoomDirection) => Effect.Effect<void>;
+    // Closes the focused app window. The native menu registers no CmdOrCtrl+W
+    // accelerator, so both the "Close Window" menu item and the renderer's
+    // `window.close` keybinding route here.
+    readonly closeMain: Effect.Effect<void>;
     readonly syncAppearance: Effect.Effect<void>;
   }
 >()("@t3tools/desktop/window/DesktopWindow") {}
@@ -547,10 +551,6 @@ export const make = Effect.gen(function* () {
       }
     });
 
-    // Electron's windowMenu close role owns CmdOrCtrl+W. Holding the
-    // close-terminal shortcut can outlive the terminal that handled its first
-    // press, so reject repeats before they reach the native window accelerator.
-    // Deliberate presses still flow through the renderer or native menu.
     // Chrome-style hold-to-quit: intercept the quit accelerator before the
     // native menu sees it and only quit after the shortcut is held. The
     // renderer shows the "Hold to Quit" hint via QUIT_SHORTCUT_CHANNEL.
@@ -577,6 +577,11 @@ export const make = Effect.gen(function* () {
     });
     window.webContents.on("before-input-event", (event, input) => {
       quitHoldHandler(event, input);
+      // The renderer owns mod+W through the keybinding registry (terminal.close
+      // or window.close), and the native menu registers no CmdOrCtrl+W
+      // accelerator. Holding the key can still outlive the terminal that
+      // handled the first press, so drop auto-repeats before the renderer sees
+      // them; deliberate presses are untouched.
       if (input.type !== "keyDown" || !input.isAutoRepeat) return;
       const modifier = environment.platform === "darwin" ? input.meta : input.control;
       if (modifier && !input.alt && !input.shift && input.key.toLowerCase() === "w") {
@@ -908,6 +913,13 @@ export const make = Effect.gen(function* () {
       // own zoom, so put each guest back where the preview left it.
       yield* previewManager.reapplyZoom();
     }),
+    closeMain: Effect.gen(function* () {
+      const window = yield* focusedMainWindow;
+      if (Option.isNone(window) || window.value.isDestroyed()) {
+        return;
+      }
+      window.value.close();
+    }).pipe(Effect.withSpan("desktop.window.closeMain")),
     syncAppearance: Effect.gen(function* () {
       const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
       yield* electronWindow.syncAllAppearance((window) =>
